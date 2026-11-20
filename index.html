@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ekoszt Teletechnika — Kosztorysowanie i Zarządzanie Zleceniami</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+    .tab-active { background-color: #fff7ed; color: #ea580c; border-right: 3px solid #ea580c; font-weight: 600; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
+      body { background: #fff !important; }
+    }
+  </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 no-print">
+    <div>
+      <div class="h-16 px-5 flex items-center gap-3 border-b border-slate-100">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-extrabold text-lg shadow-sm">E</div>
+        <div>
+          <div class="font-extrabold text-slate-900 tracking-tight leading-none">Ekoszt <span class="text-orange-600">Pro</span></div>
+          <div class="text-[11px] text-slate-400 font-medium mt-0.5">Systemy Niskoprądowe</div>
+        </div>
+      </div>
+
+      <nav class="p-3 space-y-1">
+        <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Pulpit
+        </button>
+        <button onclick="switchView('orders')" id="nav-orders" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+          <i data-lucide="briefcase" class="w-4 h-4"></i> Zlecenia i Projekty
+        </button>
+        <button onclick="switchView('estimates')" id="nav-estimates" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+          <i data-lucide="calculator" class="w-4 h-4"></i> Kosztorysowanie
+        </button>
+        <button onclick="switchView('contractors')" id="nav-contractors" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+          <i data-lucide="users" class="w-4 h-4"></i> Kontrahenci i Ekipy
+        </button>
+        <button onclick="switchView('documents')" id="nav-documents" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+          <i data-lucide="file-text" class="w-4 h-4"></i> Umowy i Protokoły
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-4 border-t border-slate-100 space-y-2">
+      <div class="bg-slate-50 rounded-lg p-3 border border-slate-200/70">
+        <div class="text-xs font-semibold text-slate-700 flex items-center justify-between">
+          <span>Baza danych (Local)</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">Dane zapisują się w przeglądarce. Możesz wykonać kopię JSON.</p>
+        <div class="flex gap-1.5 mt-2.5">
+          <button onclick="exportBackup()" class="flex-1 text-[11px] font-medium bg-white border border-slate-200 hover:bg-slate-100 py-1.5 rounded text-slate-700">Eksport JSON</button>
+          <label class="flex-1 text-[11px] font-medium bg-white border border-slate-200 hover:bg-slate-100 py-1.5 rounded text-slate-700 text-center cursor-pointer">
+            Import <input type="file" accept=".json" onchange="importBackup(event)" class="hidden">
+          </label>
+        </div>
+      </div>
+      <button onclick="resetDemoData()" class="w-full text-[11px] text-slate-400 hover:text-rose-600 py-1 transition">Przywróć dane przykładowe</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <!-- TOP BAR -->
+    <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 no-print">
+      <div class="flex items-center gap-3">
+        <h1 id="page-title" class="text-lg font-bold text-slate-900">Pulpit</h1>
+        <span id="page-badge" class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Teletechnika & Low-Voltage</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="openNewEstimateModal()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-orange-600"></i> Nowy kosztorys
+        </button>
+        <button onclick="openNewOrderModal()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-sm transition">
+          <i data-lucide="folder-plus" class="w-4 h-4"></i> Nowe zlecenie
+        </button>
+      </div>
+    </header>
+
+    <!-- DYNAMIC VIEW CONTAINER -->
+    <div id="view-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar"></div>
+  </main>
+
+  <!-- MODALS -->
+  <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4 no-print">
+    <div id="modal-content" class="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto"></div>
+  </div>
+
+<script>
+// ==================== TEMPLATES FOR LOW-VOLTAGE (TELETECHNIKA) ====================
+const TEMPLATES = {
+  "SSP": {
+    name: "System Sygnalizacji Pożaru (SSP)",
+    departments: [
+      {
+        name: "1. Okablowanie ognioodporne PH90",
+        items: [
+          { code: "KNR AL-01", name: "Układanie kabla ognioodpornego HDGs 2x2x0,8 PH90 w uchwytach ognioodpornych", unit: "m", qty: 420, rNorm: 0.14, rRate: 65, mCost: 9.80, sCost: 0.50 },
+          { code: "KNR AL-01", name: "Układanie kabla zasilającego NHXH FE180/PH90 3x2,5 mm2", unit: "m", qty: 85, rNorm: 0.18, rRate: 65, mCost: 14.50, sCost: 0.80 }
+        ]
+      },
+      {
+        name: "2. Urządzenia centralowe i liniowe",
+        items: [
+          { code: "KNR AL-01", name: "Montaż i uruchomienie adresowalnej centrali SSP (2 pętle, zasilacz rezerwowy, akumulatory 2x17Ah)", unit: "kpl.", qty: 1, rNorm: 8.5, rRate: 75, mCost: 6850.00, sCost: 45.00 },
+          { code: "KNR AL-01", name: "Montaż optycznej czujki dymu z gniazdem adresowalnym i izolatorem zwarć", unit: "szt.", qty: 38, rNorm: 0.45, rRate: 65, mCost: 245.00, sCost: 2.00 },
+          { code: "KNR AL-01", name: "Montaż Ręcznego Ostrzegacza Pożarowego (ROP) natynkowego", unit: "szt.", qty: 6, rNorm: 0.55, rRate: 65, mCost: 290.00, sCost: 2.50 },
+          { code: "KNR AL-01", name: "Montaż sygnalizatora akustyczno-optycznego wewnętrznego z izolatorem", unit: "szt.", qty: 8, rNorm: 0.50, rRate: 65, mCost: 340.00, sCost: 2.00 }
+        ]
+      },
+      {
+        name: "3. Programowanie i odbiory PSP",
+        items: [
+          { code: "KALK-WŁ", name: "Programowanie matrycy sterowań pożarowych, próby zadymiania i dokumentacja powykonawcza", unit: "kpl.", qty: 1, rNorm: 12.0, rRate: 85, mCost: 350.00, sCost: 120.00 }
+        ]
+      }
+    ]
+  },
+  "CCTV": {
+    name: "Telewizja Dozorowa CCTV IP (AI)",
+    departments: [
+      {
+        name: "1. Trasy kablowe i okablowanie U/UTP",
+        items: [
+          { code: "KNR 5-08", name: "Układanie przewodu U/UTP kat. 6 (Cu) w korytach i rurkach osłonowych", unit: "m", qty: 550, rNorm: 0.08, rRate: 60, mCost: 3.20, sCost: 0.30 }
+        ]
+      },
+      {
+        name: "2. Kamery IP i rejestracja",
+        items: [
+          { code: "KNR AL-01", name: "Montaż kamery tubowej IP 4MPx PoE, obiektyw motozoom, IR 50m, analityka AI", unit: "szt.", qty: 8, rNorm: 1.2, rRate: 65, mCost: 920.00, sCost: 15.00 },
+          { code: "KNR AL-01", name: "Montaż kamery kopułkowej IP 4MPx PoE wewnętrznej, WDR, IK10", unit: "szt.", qty: 6, rNorm: 0.9, rRate: 65, mCost: 680.00, sCost: 8.00 },
+          { code: "KNR AL-01", name: "Montaż rejestratora sieciowego NVR 16-kanałowego + 2x dysk HDD 8TB (praca 24/7)", unit: "kpl.", qty: 1, rNorm: 3.5, rRate: 75, mCost: 3950.00, sCost: 0.00 },
+          { code: "KNR AL-01", name: "Montaż switcha PoE+ 16-portowego zarządzalnego (budżet 250W)", unit: "szt.", qty: 1, rNorm: 1.5, rRate: 70, mCost: 1280.00, sCost: 0.00 }
+        ]
+      },
+      {
+        name: "3. Konfiguracja stref i zdalny podgląd",
+        items: [
+          { code: "KALK-WŁ", name: "Konfiguracja nagrywania, stref detekcji AI (ochrona obwodowa) oraz dostępu mobilnego", unit: "kpl.", qty: 1, rNorm: 6.0, rRate: 80, mCost: 0.00, sCost: 0.00 }
+        ]
+      }
+    ]
+  },
+  "KD": {
+    name: "System Kontroli Dostępu (KD / SKD)",
+    departments: [
+      {
+        name: "1. Okablowanie magistralne i zamkowe",
+        items: [
+          { code: "KNR AL-01", name: "Układanie przewodów YnTKSY 3x2x0,8 oraz YTDY 8x0,5 do przejść drzwiowych", unit: "m", qty: 320, rNorm: 0.09, rRate: 60, mCost: 2.90, sCost: 0.25 }
+        ]
+      },
+      {
+        name: "2. Kontrolery, czytniki i elementy wykonawcze",
+        items: [
+          { code: "KNR AL-01", name: "Montaż kontrolera sieciowego KD na 4 przejścia w obudowie z zasilaczem buforowym", unit: "kpl.", qty: 2, rNorm: 4.5, rRate: 75, mCost: 2450.00, sCost: 10.00 },
+          { code: "KNR AL-01", name: "Montaż czytnika zbliżeniowego MIFARE DESFire EV3 (RS-485 / OSDP)", unit: "szt.", qty: 8, rNorm: 0.85, rRate: 65, mCost: 620.00, sCost: 5.00 },
+          { code: "KNR AL-01", name: "Montaż zwory elektromagnetycznej 300kg z kątownikiem i kontaktronem stanu drzwi", unit: "kpl.", qty: 6, rNorm: 1.8, rRate: 65, mCost: 480.00, sCost: 12.00 },
+          { code: "KNR AL-01", name: "Montaż przycisku wyjścia bezdotykowego IR oraz przycisku awaryjnego otwarcia", unit: "kpl.", qty: 6, rNorm: 0.75, rRate: 65, mCost: 240.00, sCost: 4.00 }
+        ]
+      },
+      {
+        name: "3. Integracja z SSP i konfiguracja uprawnień",
+        items: [
+          { code: "KALK-WŁ", name: "Integracja z centralą SSP (zwalnianie dróg ewakuacyjnych), rejestracja 100 kart i szkolenie", unit: "kpl.", qty: 1, rNorm: 7.0, rRate: 80, mCost: 450.00, sCost: 0.00 }
+        ]
+      }
+    ]
+  },
+  "LAN": {
+    name: "Sieci Strukturalne LAN i Światłowody",
+    departments: [
+      {
+        name: "1. Punkt dystrybucyjny RACK",
+        items: [
+          { code: "KNR 5-08", name: "Montaż stojącej szafy teleinformatycznej RACK 19" 42U 800x1000 z listwami PDU i wentylacją", unit: "kpl.", qty: 1, rNorm: 5.0, rRate: 70, mCost: 3400.00, sCost: 30.00 },
+          { code: "KNR 5-08", name: "Montaż panelu krosowego 24xRJ45 kat. 6A ekranowanego + organizery kablowe", unit: "szt.", qty: 3, rNorm: 1.6, rRate: 65, mCost: 420.00, sCost: 0.00 }
+        ]
+      },
+      {
+        name: "2. Okablowanie miedziane kat. 6A i światłowód 12J",
+        items: [
+          { code: "KNR 5-08", name: "Układanie kabla S/FTP kat. 6A LSOH do punktów logicznych PEL", unit: "m", qty: 1450, rNorm: 0.07, rRate: 60, mCost: 4.10, sCost: 0.25 },
+          { code: "KNR 5-08", name: "Montaż gniazda logicznego podwójnego 2xRJ45 kat. 6A ekranowanego", unit: "szt.", qty: 32, rNorm: 0.65, rRate: 65, mCost: 88.00, sCost: 2.00 },
+          { code: "KNR 5-08", name: "Układanie kabla światłowodowego uniwersalnego 12J SM G.652D LSOH", unit: "m", qty: 240, rNorm: 0.12, rRate: 65, mCost: 5.40, sCost: 1.50 },
+          { code: "KALK-WŁ", name: "Spawanie włókien światłowodowych w przełącznicy 19" (pigtaille + adaptery LC Duplex)", unit: "spaw", qty: 24, rNorm: 0.35, rRate: 75, mCost: 18.00, sCost: 25.00 }
+        ]
+      },
+      {
+        name: "3. Certyfikacja pomiarowa Fluke / OTDR",
+        items: [
+          { code: "KALK-WŁ", name: "Pomiary dynamiczne torów kat. 6A (Fluke DSX) oraz reflektometryczne OTDR z raportem PDF", unit: "tor", qty: 76, rNorm: 0.15, rRate: 75, mCost: 0.00, sCost: 18.00 }
+        ]
+      }
+    ]
+  },
+  "SSWIN": {
+    name: "System Sygnalizacji Włamania i Napadu (SSWiN)",
+    departments: [
+      {
+        name: "1. Okablowanie alarmowe YTDY",
+        items: [
+          { code: "KNR AL-01", name: "Układanie przewodu alarmowego YTDY 6x0,5 mm2", unit: "m", qty: 380, rNorm: 0.08, rRate: 60, mCost: 2.10, sCost: 0.20 }
+        ]
+      },
+      {
+        name: "2. Centrala Grade 3 i detekcja",
+        items: [
+          { code: "KNR AL-01", name: "Montaż centrali alarmowej Grade 3 z modułem komunikacyjnym ETH/LTE i akumulatorem 17Ah", unit: "kpl.", qty: 1, rNorm: 5.5, rRate: 75, mCost: 2150.00, sCost: 10.00 },
+          { code: "KNR AL-01", name: "Montaż manipulatora dotykowego LCD z czytnikiem strefowym", unit: "szt.", qty: 2, rNorm: 1.1, rRate: 65, mCost: 790.00, sCost: 4.00 },
+          { code: "KNR AL-01", name: "Montaż cyfrowej czujki dualnej PIR+MW z antymaskingiem (Grade 3)", unit: "szt.", qty: 14, rNorm: 0.65, rRate: 65, mCost: 235.00, sCost: 3.00 },
+          { code: "KNR AL-01", name: "Montaż kontaktronu wpuszczanego / bramowego najazdowego", unit: "szt.", qty: 6, rNorm: 0.60, rRate: 65, mCost: 95.00, sCost: 3.00 },
+          { code: "KNR AL-01", name: "Montaż sygnalizatora zewnętrznego optyczno-akustycznego z własnym zasilaniem", unit: "szt.", qty: 1, rNorm: 1.5, rRate: 65, mCost: 360.00, sCost: 15.00 }
+        ]
+      }
+    ]
+  },
+  "ODDYMIANIE": {
+    name: "System Oddymiania Grawitacyjnego Klatek Schodowych",
+    departments: [
+      {
+        name: "1. Przewody ognioodporne PH90",
+        items: [
+          { code: "KNR AL-01", name: "Układanie przewodu ognioodpornego HDGs 3x1,5 PH90 do siłowników klap", unit: "m", qty: 110, rNorm: 0.16, rRate: 65, mCost: 11.20, sCost: 0.80 },
+          { code: "KNR AL-01", name: "Układanie przewodu HDGs 2x2x0,8 PH90 do czujek dymu i przycisków PO", unit: "m", qty: 140, rNorm: 0.14, rRate: 65, mCost: 9.80, sCost: 0.60 }
+        ]
+      },
+      {
+        name: "2. Centrala oddymiania i elementy sterujące",
+        items: [
+          { code: "KNR AL-01", name: "Montaż centrali oddymiania 24V DC (8A) z akumulatorami 2x12Ah", unit: "kpl.", qty: 1, rNorm: 4.5, rRate: 75, mCost: 2890.00, sCost: 15.00 },
+          { code: "KNR AL-01", name: "Montaż siłownika wrzecionowego 24V / 1000N do klapy dymowej z konsolą", unit: "szt.", qty: 2, rNorm: 2.2, rRate: 70, mCost: 1350.00, sCost: 25.00 },
+          { code: "KNR AL-01", name: "Montaż przycisku oddymiania PO (pomarańczowy) oraz przycisku przewietrzania", unit: "kpl.", qty: 2, rNorm: 0.8, rRate: 65, mCost: 320.00, sCost: 4.00 },
+          { code: "KNR AL-01", name: "Montaż optycznej czujki dymu z gniazdem", unit: "szt.", qty: 4, rNorm: 0.45, rRate: 65, mCost: 145.00, sCost: 2.00 }
+        ]
+      }
+    ]
+  },
+  "DOMOFONY": {
+    name: "System Wideodomofonowy IP (Wielolokalowy)",
+    departments: [
+      {
+        name: "1. Okablowanie i switche PoE",
+        items: [
+          { code: "KNR 5-08", name: "Układanie skrętki U/UTP kat. 5e/6 do lokali i stacji bramowych", unit: "m", qty: 480, rNorm: 0.08, rRate: 60, mCost: 2.80, sCost: 0.25 },
+          { code: "KNR AL-01", name: "Montaż switcha PoE 8-portowego w szafce teletechnicznej", unit: "szt.", qty: 2, rNorm: 1.0, rRate: 65, mCost: 460.00, sCost: 0.00 }
+        ]
+      },
+      {
+        name: "2. Stacja bramowa i monitory lokatorskie",
+        items: [
+          { code: "KNR AL-01", name: "Montaż zewnętrznej stacji bramowej IP (kamera FullHD, czytnik RFID, klawiatura kodowa)", unit: "kpl.", qty: 1, rNorm: 3.0, rRate: 70, mCost: 2290.00, sCost: 15.00 },
+          { code: "KNR AL-01", name: "Montaż głośnomówiącego monitora wewnętrznego 7" PoE z ekranem dotykowym", unit: "szt.", qty: 12, rNorm: 0.85, rRate: 65, mCost: 740.00, sCost: 4.00 },
+          { code: "KNR AL-01", name: "Montaż elektrozaczepu rewersyjnego / symetrycznego z pamięcią i listwą zaczepową", unit: "kpl.", qty: 1, rNorm: 1.5, rRate: 65, mCost: 260.00, sCost: 10.00 }
+        ]
+      }
+    ]
+  },
+  "LPR": {
+    name: "System Rozpoznawania Tablic Rejestracyjnych (LPR / ANPR) na Wjeździe",
+    departments: [
+      {
+        name: "1. Roboty ziemne, fundamenty i okablowanie zewnętrzne",
+        items: [
+          { code: "KNR 2-01", name: "Wykonanie fundamentu betonowego pod szlaban i słup kamerowy wraz z przepustami AROT", unit: "kpl.", qty: 2, rNorm: 4.0, rRate: 60, mCost: 420.00, sCost: 85.00 },
+          { code: "KNR 5-08", name: "Układanie kabla ziemnego U/FTP kat. 6 żelowanego oraz YKY 3x2,5 w rurze osłonowej", unit: "m", qty: 95, rNorm: 0.14, rRate: 60, mCost: 8.60, sCost: 1.20 }
+        ]
+      },
+      {
+        name: "2. Kamera LPR, detekcja pętlowa i szlaban automatyczny",
+        items: [
+          { code: "KNR AL-01", name: "Montaż dedykowanej kamery LPR/ANPR (do 60 km/h, wbudowana baza tablic, przekaźnik NO/NC)", unit: "kpl.", qty: 1, rNorm: 3.5, rRate: 75, mCost: 3650.00, sCost: 25.00 },
+          { code: "KNR AL-01", name: "Montaż elektromechanicznego szlabanu wjazdowego 24V (ramię 4m z oświetleniem LED i fotokomórkami)", unit: "kpl.", qty: 1, rNorm: 5.5, rRate: 75, mCost: 5400.00, sCost: 45.00 },
+          { code: "KNR AL-01", name: "Nacięcie nawierzchni i ułożenie pętli indukcyjnej z detektorem 2-kanałowym", unit: "kpl.", qty: 1, rNorm: 3.0, rRate: 70, mCost: 680.00, sCost: 90.00 }
+        ]
+      },
+      {
+        name: "3. Kalibracja optyki LPR i konfiguracja list dostępu",
+        items: [
+          { code: "KALK-WŁ", name: "Kalibracja kąta i ostrości IR kamery LPR, konfiguracja białej/czarnej listy i harmonogramów", unit: "kpl.", qty: 1, rNorm: 4.5, rRate: 85, mCost: 0.00, sCost: 0.00 }
+        ]
+      }
+    ]
+  }
+};
+
+// ==================== INITIAL DEMO DATA ====================
+const DEFAULT_STATE = {
+  company: {
+    name: "TechInstal Systemy Niskoprądowe Sp. z o.o.",
+    address: "ul. Przemysłowa 14, 66-400 Gorzów Wielkopolski",
+    nip: "599-324-18-90",
+    rep: "Marek Kowalski — Prezes Zarządu",
+    phone: "+48 502 410 880",
+    email: "biuro@techinstal.pl"
+  },
+  contractors: [
+    { id: "c1", name: "LogiPark Zachód Sp. z o.o.", type: "Inwestor", address: "ul. Magazynowa 8, 66-400 Gorzów Wlkp.", nip: "599-310-44-12", contact: "Anna Nowak", phone: "+48 601 220 330", email: "a.nowak@logipark.pl" },
+    { id: "c2", name: "Wspólnota Mieszkaniowa Słoneczna 12", type: "Inwestor", address: "ul. Słoneczna 12, 66-400 Gorzów Wlkp.", nip: "599-280-11-05", contact: "Piotr Zieliński", phone: "+48 605 991 120", email: "zarzad@sloneczna12.pl" },
+    { id: "c3", name: "Brygada Instalacyjna nr 1 (Własna)", type: "Podwykonawca", address: "Zespół wewnętrzny — SSP / KD", nip: "-", contact: "Tomasz Wiśniewski", phone: "+48 500 111 222", email: "t.wisniewski@techinstal.pl" },
+    { id: "c4", name: "FiberNet Spawanie Światłowodów", type: "Podwykonawca", address: "ul. Kostrzyńska 45, Gorzów Wlkp.", nip: "599-301-88-77", contact: "Krzysztof Lewandowski", phone: "+48 692 440 510", email: "biuro@fibernet.pl" }
+  ],
+  estimates: [
+    {
+      id: "est1",
+      code: "KOSZT/2026/014",
+      title: "Hala Logistyczna LogiPark — SSP + LPR na wjeździe",
+      templateKey: "SSP",
+      date: "2026-11-10",
+      kp: 65,
+      kz: 5,
+      profit: 15,
+      vat: 23,
+      departments: JSON.parse(JSON.stringify(TEMPLATES.SSP.departments))
+    },
+    {
+      id: "est2",
+      code: "KOSZT/2026/015",
+      title: "Wspólnota Słoneczna 12 — Wideodomofony IP + CCTV",
+      templateKey: "DOMOFONY",
+      date: "2026-11-15",
+      kp: 60,
+      kz: 5,
+      profit: 12,
+      vat: 8,
+      departments: JSON.parse(JSON.stringify(TEMPLATES.DOMOFONY.departments))
+    }
+  ],
+  orders: [
+    {
+      id: "ord1",
+      code: "ZLC/2026/08",
+      title: "Instalacja SSP i Kontroli Dostępu — Hala LogiPark",
+      investorId: "c1",
+      estimateId: "est1",
+      description: "Kompleksowe wykonanie systemu sygnalizacji pożaru (PH90) oraz kontroli wjazdu LPR z integracją przeciwpożarową.",
+      tasks: [
+        { id: "t1", name: "Układanie kabla ognioodpornego HDGs 2x2x0,8 PH90", category: "Okablowanie", status: "Zrealizowane", contractorId: "c3", start: "2026-11-02", end: "2026-11-10", unit: "m", qty: 420, offerVal: 9850.00, realVal: 9120.00 },
+        { id: "t2", name: "Montaż centrali SSP oraz 38 czujek dymu i ROP", category: "Montaż urządzeń", status: "W toku", contractorId: "c3", start: "2026-11-11", end: "2026-11-24", unit: "kpl.", qty: 1, offerVal: 21400.00, realVal: 19800.00 },
+        { id: "t3", name: "Spawanie światłowodu 12J do portierni", category: "Światłowody", status: "W toku", contractorId: "c4", start: "2026-11-14", end: "2026-11-18", unit: "spaw", qty: 24, offerVal: 3200.00, realVal: 3450.00 },
+        { id: "t4", name: "Programowanie matrycy sterowań i próby PSP", category: "Uruchomienie", status: "Nowe", contractorId: "c3", start: "2026-11-25", end: "2026-11-29", unit: "kpl.", qty: 1, offerVal: 2800.00, realVal: 0.00 }
+      ]
+    }
+  ]
+};
+
+// ==================== STATE MANAGEMENT ====================
+let state = JSON.parse(localStorage.getItem("ekoszt_teletechnika_v1")) || JSON.parse(JSON.stringify(DEFAULT_STATE));
+let currentView = "dashboard";
+let activeEstimateId = state.estimates[0]?.id || null;
+let estimateSubView = "kosztorys"; // kosztorys | przedmiar | rms | scalone
+let activeOrderId = state.orders[0]?.id || null;
+let orderSubView = "lista"; // lista | gantt | kalendarz
+let selectedTaskIds = new Set();
+
+function saveState() {
+  localStorage.setItem("ekoszt_teletechnika_v1", JSON.stringify(state));
+}
+
+function resetDemoData() {
+  if (confirm("Czy na pewno przywrócić domyślne dane przykładowe? Twoje bieżące zmiany zostaną nadpisane.")) {
+    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    saveState();
+    activeEstimateId = state.estimates[0].id;
+    activeOrderId = state.orders[0].id;
+    render();
+  }
+}
+
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ekoszt-teletechnika-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (parsed.estimates && parsed.orders) {
+        state = parsed;
+        saveState();
+        render();
+        alert("Kopia zapasowa została pomyślnie wczytana!");
+      } else {
+        alert("Nieprawidłowy format pliku kopii.");
+      }
+    } catch (err) {
+      alert("Błąd odczytu pliku JSON.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ==================== CALCULATIONS (RMS ENGINE) ====================
+function calcItem(item, est) {
+  const R = item.qty * item.rNorm * item.rRate;
+  const M = item.qty * item.mCost;
+  const S = item.qty * item.sCost;
+  const direct = R + M + S;
+  const kpVal = (R + S) * (est.kp / 100);
+  const kzVal = M * (est.kz / 100);
+  const profitVal = (R + S + kpVal) * (est.profit / 100);
+  const net = direct + kpVal + kzVal + profitVal;
+  const unitPrice = item.qty > 0 ? net / item.qty : 0;
+  return { R, M, S, direct, kpVal, kzVal, profitVal, net, unitPrice };
+}
+
+function calcEstimate(est) {
+  let totalR = 0, totalM = 0, totalS = 0, totalDirect = 0, totalKp = 0, totalKz = 0, totalProfit = 0, totalNet = 0;
+  est.departments.forEach(dep => {
+    dep.items.forEach(it => {
+      const c = calcItem(it, est);
+      totalR += c.R; totalM += c.M; totalS += c.S;
+      totalDirect += c.direct; totalKp += c.kpVal; totalKz += c.kzVal; totalProfit += c.profitVal;
+      totalNet += c.net;
+    });
+  });
+  const vatVal = totalNet * (est.vat / 100);
+  const totalGross = totalNet + vatVal;
+  return { totalR, totalM, totalS, totalDirect, totalKp, totalKz, totalProfit, totalNet, vatVal, totalGross };
+}
+
+function fmtPLN(val) {
+  return new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val) + " zł";
+}
+
+function isOverdue(task) {
+  if (task.status === "Zrealizowane" || !task.end) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return task.end < today;
+}
+
+// ==================== NAVIGATION ====================
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("tab-active"));
+  document.getElementById(`nav-${view}`)?.classList.add("tab-active");
+
+  const titles = {
+    dashboard: ["Pulpit Zarządczy", "Podsumowanie zleceń i wycen"],
+    orders: ["Zlecenia i Projekty", "Harmonogram Gantt, Kalendarz i Kontrola Kosztów"],
+    estimates: ["Kosztorysowanie Online", "Kalkulacje RMS i Szablony Teletechniczne"],
+    contractors: ["Kontrahenci i Ekipy", "Inwestorzy oraz Podwykonawcy"],
+    documents: ["Generator Dokumentów", "Oferty, Umowy i Protokoły Odbioru"]
+  };
+  document.getElementById("page-title").textContent = titles[view][0];
+  document.getElementById("page-badge").textContent = titles[view][1];
+  render();
+}
+
+function render() {
+  const container = document.getElementById("view-container");
+  if (currentView === "dashboard") container.innerHTML = renderDashboard();
+  else if (currentView === "orders") container.innerHTML = renderOrders();
+  else if (currentView === "estimates") container.innerHTML = renderEstimates();
+  else if (currentView === "contractors") container.innerHTML = renderContractors();
+  else if (currentView === "documents") container.innerHTML = renderDocuments();
+  lucide.createIcons();
+}
+
+// ==================== VIEW: DASHBOARD ====================
+function renderDashboard() {
+  let totalOffer = 0, totalReal = 0, overdueCount = 0, activeOrdersCount = state.orders.length;
+  state.orders.forEach(o => {
+    o.tasks.forEach(t => {
+      totalOffer += Number(t.offerVal || 0);
+      totalReal += Number(t.realVal || 0);
+      if (isOverdue(t)) overdueCount++;
+    });
+  });
+
+  const estSum = state.estimates.reduce((acc, e) => acc + calcEstimate(e).totalNet, 0);
+
+  return `
+    <div class="space-y-6">
+      <!-- KPI CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+            <span>AKTYWNE ZLECENIA</span>
+            <i data-lucide="briefcase" class="w-4 h-4 text-orange-600"></i>
+          </div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-2">${activeOrdersCount}</div>
+          <div class="text-xs text-slate-500 mt-1">Wartość ofertowa: <strong class="text-slate-700">${fmtPLN(totalOffer)}</strong></div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+            <span>KOSZT REALIZACJI ZLECEŃ</span>
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i>
+          </div>
+          <div class="text-2xl font-extrabold ${totalReal <= totalOffer ? 'text-emerald-600' : 'text-rose-600'} mt-2">${fmtPLN(totalReal)}</div>
+          <div class="text-xs text-slate-500 mt-1">Pozostały budżet: <strong>${fmtPLN(totalOffer - totalReal)}</strong></div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+            <span>KOSZTORYSY W BAZIE</span>
+            <i data-lucide="calculator" class="w-4 h-4 text-blue-600"></i>
+          </div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-2">${state.estimates.length}</div>
+          <div class="text-xs text-slate-500 mt-1">Łącznie netto: <strong>${fmtPLN(estSum)}</strong></div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+            <span>ZADANIA PO TERMINIE</span>
+            <i data-lucide="alert-triangle" class="w-4 h-4 ${overdueCount > 0 ? 'text-rose-600' : 'text-slate-400'}"></i>
+          </div>
+          <div class="text-2xl font-extrabold ${overdueCount > 0 ? 'text-rose-600' : 'text-slate-900'} mt-2">${overdueCount}</div>
+          <div class="text-xs text-slate-500 mt-1">${overdueCount > 0 ? 'Wymaga pilnej aktualizacji harmonogramu' : 'Wszystkie prace zgodnie z planem'}</div>
+        </div>
+      </div>
+
+      <!-- QUICK TEMPLATES LAUNCHER -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Szybki start — Szablony kosztorysów teletechnicznych</h2>
+            <p class="text-xs text-slate-500">Wybierz gotowy przedmiar z nakładami RMS i utwórz wycenę jednym kliknięciem</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          ${Object.entries(TEMPLATES).map(([key, tpl]) => `
+            <button onclick="createEstimateFromTemplate('${key}')" class="text-left p-3.5 rounded-lg border border-slate-200 hover:border-orange-500 hover:bg-orange-50/40 transition group">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 group-hover:bg-orange-600 group-hover:text-white transition">${key}</span>
+                <i data-lucide="arrow-up-right" class="w-4 h-4 text-slate-400 group-hover:text-orange-600"></i>
+              </div>
+              <div class="font-semibold text-sm text-slate-800 mt-2 line-clamp-2">${tpl.name}</div>
+              <div class="text-[11px] text-slate-400 mt-1">${tpl.departments.reduce((s,d)=>s+d.items.length,0)} pozycji katalogowych</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- RECENT ORDERS & ESTIMATES -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-slate-900 text-sm">Realizowane zlecenia</h3>
+            <button onclick="switchView('orders')" class="text-xs font-semibold text-orange-600 hover:underline">Wszystkie →</button>
+          </div>
+          <div class="space-y-3">
+            ${state.orders.map(o => {
+              const done = o.tasks.filter(t => t.status === "Zrealizowane").length;
+              const pct = o.tasks.length ? Math.round((done / o.tasks.length) * 100) : 0;
+              const inv = state.contractors.find(c => c.id === o.investorId)?.name || "Brak inwestora";
+              return `
+                <div onclick="activeOrderId='${o.id}'; switchView('orders')" class="p-3.5 rounded-lg border border-slate-100 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="text-[11px] font-mono text-slate-400">${o.code}</span>
+                      <div class="font-semibold text-sm text-slate-900">${o.title}</div>
+                      <div class="text-xs text-slate-500">${inv}</div>
+                    </div>
+                    <span class="text-xs font-bold text-orange-600">${pct}%</span>
+                  </div>
+                  <div class="w-full bg-slate-200 h-1.5 rounded-full mt-2.5 overflow-hidden">
+                    <div class="bg-orange-600 h-full rounded-full" style="width: ${pct}%"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-slate-900 text-sm">Ostatnie kosztorysy</h3>
+            <button onclick="switchView('estimates')" class="text-xs font-semibold text-orange-600 hover:underline">Wszystkie →</button>
+          </div>
+          <div class="space-y-3">
+            ${state.estimates.map(e => {
+              const totals = calcEstimate(e);
+              return `
+                <div onclick="activeEstimateId='${e.id}'; switchView('estimates')" class="p-3.5 rounded-lg border border-slate-100 bg-slate-50/60 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition">
+                  <div>
+                    <span class="text-[11px] font-mono text-slate-400">${e.code} • ${e.date}</span>
+                    <div class="font-semibold text-sm text-slate-900">${e.title}</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="font-bold text-sm text-slate-900">${fmtPLN(totals.totalNet)}</div>
+                    <div class="text-[11px] text-slate-400">netto (VAT ${e.vat}%)</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== VIEW: ESTIMATES (KOSZTORYSOWANIE) ====================
+function renderEstimates() {
+  const est = state.estimates.find(e => e.id === activeEstimateId) || state.estimates[0];
+  if (!est) {
+    return `<div class="bg-white p-10 rounded-xl border border-slate-200 text-center">
+      <p class="text-slate-500 mb-4">Brak kosztorysów w bazie.</p>
+      <button onclick="openNewEstimateModal()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold">+ Utwórz pierwszy kosztorys</button>
+    </div>`;
+  }
+  activeEstimateId = est.id;
+  const totals = calcEstimate(est);
+
+  return `
+    <div class="space-y-5">
+      <!-- ESTIMATE SELECTOR & ACTIONS -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <select onchange="activeEstimateId=this.value; render()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 bg-white">
+            ${state.estimates.map(e => `<option value="${e.id}" ${e.id===est.id?'selected':''}>${e.code} — ${e.title}</option>`).join('')}
+          </select>
+          <button onclick="deleteEstimate('${est.id}')" title="Usuń kosztorys" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg border border-slate-200">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="openEstimateSettingsModal('${est.id}')" class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Narzuty (Kp ${est.kp}%, Kz ${est.kz}%, Zysk ${est.profit}%)
+          </button>
+          <button onclick="updateMarketPrices('${est.id}')" class="px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-800 hover:bg-amber-100 inline-flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Aktualizuj ceny (Cennik RMS)
+          </button>
+          <button onclick="exportEstimateCSV('${est.id}')" class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Eksport Excel/CSV
+          </button>
+          <button onclick="window.print()" class="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 inline-flex items-center gap-1.5">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Drukuj PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- SUBVIEWS & ADD BUTTONS -->
+      <div class="flex flex-wrap items-center justify-between gap-3 no-print">
+        <div class="inline-flex bg-slate-200/70 p-1 rounded-lg">
+          ${[
+            ["kosztorys", "Kosztorys szczegółowy"],
+            ["przedmiar", "Przedmiar robót"],
+            ["rms", "Zestawienie RMS"],
+            ["scalone", "Elementy scalone"]
+          ].map(([key, label]) => `
+            <button onclick="estimateSubView='${key}'; render()" class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${estimateSubView===key ? 'bg-white text-orange-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">${label}</button>
+          `).join('')}
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="addDepartment('${est.id}')" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Dodaj dział</button>
+          <button onclick="openAddEstimateItemModal('${est.id}')" class="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700">+ Dodaj pozycję</button>
+        </div>
+      </div>
+
+      <!-- ESTIMATE TABLE BODY -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs print-only">
+        <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div>
+            <div class="text-xs font-mono text-slate-400">${est.code} • Data: ${est.date}</div>
+            <h2 class="text-base font-bold text-slate-900">${est.title}</h2>
+          </div>
+          <div class="text-right text-xs text-slate-500">
+            Kp: <strong>${est.kp}%</strong> | Kz: <strong>${est.kz}%</strong> | Zysk: <strong>${est.profit}%</strong> | VAT: <strong>${est.vat}%</strong>
+          </div>
+        </div>
+
+        ${renderEstimateTableContent(est, totals)}
+      </div>
+
+      <!-- FINANCIAL SUMMARY BAR -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200">
+          <div class="text-[11px] text-slate-400 font-semibold">ROBOCIZNA (R)</div>
+          <div class="text-base font-bold text-slate-800 mt-0.5">${fmtPLN(totals.totalR)}</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200">
+          <div class="text-[11px] text-slate-400 font-semibold">MATERIAŁY (M)</div>
+          <div class="text-base font-bold text-slate-800 mt-0.5">${fmtPLN(totals.totalM)}</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200">
+          <div class="text-[11px] text-slate-400 font-semibold">SPRZĘT + NARZUTY</div>
+          <div class="text-base font-bold text-slate-800 mt-0.5">${fmtPLN(totals.totalS + totals.totalKp + totals.totalKz + totals.totalProfit)}</div>
+        </div>
+        <div class="bg-orange-50 p-3.5 rounded-xl border border-orange-200">
+          <div class="text-[11px] text-orange-700 font-bold">WARTOŚĆ NETTO</div>
+          <div class="text-lg font-extrabold text-orange-700 mt-0.5">${fmtPLN(totals.totalNet)}</div>
+        </div>
+        <div class="bg-slate-900 p-3.5 rounded-xl text-white">
+          <div class="text-[11px] text-slate-400 font-semibold">BRUTTO (Z VAT ${est.vat}%)</div>
+          <div class="text-lg font-extrabold mt-0.5">${fmtPLN(totals.totalGross)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEstimateTableContent(est, totals) {
+  if (estimateSubView === "scalone") {
+    return `
+      <table class="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase">
+            <th class="py-3 px-4">Lp.</th>
+            <th class="py-3 px-4">Nazwa działu robót</th>
+            <th class="py-3 px-4 text-right">Robocizna (R)</th>
+            <th class="py-3 px-4 text-right">Materiały (M)</th>
+            <th class="py-3 px-4 text-right">Wartość Netto (z narzutami)</th>
+            <th class="py-3 px-4 text-right">Udział %</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${est.departments.map((dep, idx) => {
+            let dR = 0, dM = 0, dNet = 0;
+            dep.items.forEach(it => { const c = calcItem(it, est); dR += c.R; dM += c.M; dNet += c.net; });
+            const share = totals.totalNet > 0 ? ((dNet / totals.totalNet) * 100).toFixed(1) : 0;
+            return `
+              <tr>
+                <td class="py-3 px-4 font-semibold text-slate-500">${idx + 1}</td>
+                <td class="py-3 px-4 font-bold text-slate-800">${dep.name}</td>
+                <td class="py-3 px-4 text-right text-slate-600">${fmtPLN(dR)}</td>
+                <td class="py-3 px-4 text-right text-slate-600">${fmtPLN(dM)}</td>
+                <td class="py-3 px-4 text-right font-bold text-slate-900">${fmtPLN(dNet)}</td>
+                <td class="py-3 px-4 text-right text-xs font-semibold text-orange-600">${share}%</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  if (estimateSubView === "rms") {
+    const rows = [];
+    est.departments.forEach(dep => dep.items.forEach(it => rows.push(it)));
+    return `
+      <div class="p-4 space-y-6">
+        <div>
+          <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Zestawienie Materiałów (M) i Urządzeń</h4>
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-500">
+                <th class="py-2 px-3">Pozycja / Materiał</th>
+                <th class="py-2 px-3">J.m.</th>
+                <th class="py-2 px-3 text-right">Ilość</th>
+                <th class="py-2 px-3 text-right">Cena jedn. M</th>
+                <th class="py-2 px-3 text-right">Wartość M</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${rows.filter(r => r.mCost > 0).map(r => `
+                <tr>
+                  <td class="py-2 px-3 font-medium text-slate-800">${r.name}</td>
+                  <td class="py-2 px-3 text-slate-500">${r.unit}</td>
+                  <td class="py-2 px-3 text-right">${r.qty}</td>
+                  <td class="py-2 px-3 text-right">${fmtPLN(r.mCost)}</td>
+                  <td class="py-2 px-3 text-right font-semibold">${fmtPLN(r.qty * r.mCost)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Zestawienie Robocizny (R)</h4>
+          <p class="text-sm text-slate-700">Łączna liczba roboczogodzin (r-g): <strong>${rows.reduce((s,r)=>s+(r.qty*r.rNorm),0).toFixed(2)} r-g</strong> • Wartość robocizny bezpośredniej: <strong>${fmtPLN(totals.totalR)}</strong></p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Kosztorys szczegółowy lub Przedmiar
+  const isPrzedmiar = estimateSubView === "przedmiar";
+  return `
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase">
+            <th class="py-2.5 px-3 w-12">Lp.</th>
+            <th class="py-2.5 px-3 w-24">Podstawa</th>
+            <th class="py-2.5 px-3">Opis pozycji kosztorysowej</th>
+            <th class="py-2.5 px-3 w-14">J.m.</th>
+            <th class="py-2.5 px-3 text-right w-20">Obmiar</th>
+            ${!isPrzedmiar ? `
+              <th class="py-2.5 px-3 text-right w-24">Nakład R (r-g)</th>
+              <th class="py-2.5 px-3 text-right w-24">Cena M (zł)</th>
+              <th class="py-2.5 px-3 text-right w-28">Cena jedn.</th>
+              <th class="py-2.5 px-3 text-right w-28">Wartość netto</th>
+            ` : ''}
+            <th class="py-2.5 px-3 text-right w-16 no-print">Akcje</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${est.departments.map((dep, dIdx) => `
+            <tr class="bg-amber-50/70 font-bold text-slate-800">
+              <td class="py-2 px-3">${dIdx + 1}</td>
+              <td colspan="${isPrzedmiar ? 4 : 8}" class="py-2 px-3">${dep.name}</td>
+              <td class="py-2 px-3 text-right no-print">
+                <button onclick="deleteDepartment('${est.id}', ${dIdx})" class="text-slate-400 hover:text-rose-600" title="Usuń dział"><i data-lucide="x" class="w-3.5 h-3.5 inline"></i></button>
+              </td>
+            </tr>
+            ${dep.items.map((it, iIdx) => {
+              const c = calcItem(it, est);
+              return `
+                <tr class="hover:bg-slate-50/80">
+                  <td class="py-2.5 px-3 text-slate-500">${dIdx + 1}.${iIdx + 1}</td>
+                  <td class="py-2.5 px-3 font-mono text-[11px] text-slate-500">${it.code}</td>
+                  <td class="py-2.5 px-3 font-medium text-slate-900">${it.name}</td>
+                  <td class="py-2.5 px-3 text-slate-500">${it.unit}</td>
+                  <td class="py-2.5 px-3 text-right">
+                    <input type="number" step="0.01" value="${it.qty}" onchange="updateItemField('${est.id}', ${dIdx}, ${iIdx}, 'qty', this.value)" class="w-16 text-right border border-slate-200 rounded px-1.5 py-0.5 font-semibold text-slate-800">
+                  </td>
+                  ${!isPrzedmiar ? `
+                    <td class="py-2.5 px-3 text-right text-slate-600">${(it.qty * it.rNorm).toFixed(2)}</td>
+                    <td class="py-2.5 px-3 text-right">
+                      <input type="number" step="0.1" value="${it.mCost}" onchange="updateItemField('${est.id}', ${dIdx}, ${iIdx}, 'mCost', this.value)" class="w-20 text-right border border-slate-200 rounded px-1.5 py-0.5 text-slate-800">
+                    </td>
+                    <td class="py-2.5 px-3 text-right text-slate-600">${fmtPLN(c.unitPrice)}</td>
+                    <td class="py-2.5 px-3 text-right font-bold text-slate-900">${fmtPLN(c.net)}</td>
+                  ` : ''}
+                  <td class="py-2.5 px-3 text-right no-print">
+                    <button onclick="openEditItemModal('${est.id}', ${dIdx}, ${iIdx})" class="text-slate-400 hover:text-orange-600 mr-1" title="Edytuj RMS"><i data-lucide="edit-3" class="w-3.5 h-3.5 inline"></i></button>
+                    <button onclick="deleteEstimateItem('${est.id}', ${dIdx}, ${iIdx})" class="text-slate-400 hover:text-rose-600" title="Usuń"><i data-lucide="trash" class="w-3.5 h-3.5 inline"></i></button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ==================== VIEW: ORDERS (ZLECENIA, GANTT, KALENDARZ) ====================
+function renderOrders() {
+  const order = state.orders.find(o => o.id === activeOrderId) || state.orders[0];
+  if (!order) {
+    return `<div class="bg-white p-10 rounded-xl border border-slate-200 text-center">
+      <p class="text-slate-500 mb-4">Brak zleceń w systemie.</p>
+      <button onclick="openNewOrderModal()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold">+ Załóż nowe zlecenie</button>
+    </div>`;
+  }
+  activeOrderId = order.id;
+
+  const investor = state.contractors.find(c => c.id === order.investorId);
+  const doneCount = order.tasks.filter(t => t.status === "Zrealizowane").length;
+  const overdueCount = order.tasks.filter(t => isOverdue(t)).length;
+  const progress = order.tasks.length ? Math.round((doneCount / order.tasks.length) * 100) : 0;
+  const sumOffer = order.tasks.reduce((s, t) => s + Number(t.offerVal || 0), 0);
+  const sumReal = order.tasks.reduce((s, t) => s + Number(t.realVal || 0), 0);
+
+  return `
+    <div class="space-y-5">
+      <!-- ORDER HEADER & SELECTOR -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <select onchange="activeOrderId=this.value; selectedTaskIds.clear(); render()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 bg-white">
+              ${state.orders.map(o => `<option value="${o.id}" ${o.id===order.id?'selected':''}>${o.code} — ${o.title}</option>`).join('')}
+            </select>
+            <span class="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 font-medium">Inwestor: <strong>${investor ? investor.name : 'Nie przypisano'}</strong></span>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openImportTasksModal('${order.id}')" class="px-3 py-2 rounded-lg border border-orange-300 bg-orange-50 text-xs font-semibold text-orange-700 hover:bg-orange-100 inline-flex items-center gap-1.5">
+              <i data-lucide="import" class="w-3.5 h-3.5"></i> Importuj zadania z kosztorysu
+            </button>
+            <button onclick="openAddTaskModal('${order.id}')" class="px-3 py-2 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 inline-flex items-center gap-1.5">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Dodaj zadanie
+            </button>
+            <button onclick="generateProtocolFromOrder('${order.id}')" class="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5">
+              <i data-lucide="file-check" class="w-3.5 h-3.5 text-emerald-600"></i> Generuj protokół
+            </button>
+          </div>
+        </div>
+
+        <!-- PROGRESS & COST CONTROL STRIP -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
+          <div>
+            <div class="text-[11px] text-slate-400 font-semibold">POSTĘP REALIZACJI</div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-base font-extrabold text-slate-900">${progress}%</span>
+              <div class="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div class="bg-orange-600 h-full" style="width:${progress}%"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-[11px] text-slate-400 font-semibold">ZADANIA (UKOŃCZONE / PO TERM.)</div>
+            <div class="text-sm font-bold text-slate-800 mt-1">${doneCount} / ${order.tasks.length} <span class="${overdueCount>0?'text-rose-600':'text-slate-400'}">(${overdueCount} po terminie)</span></div>
+          </div>
+          <div>
+            <div class="text-[11px] text-slate-400 font-semibold">WARTOŚĆ OFERTOWA</div>
+            <div class="text-sm font-bold text-slate-900 mt-1">${fmtPLN(sumOffer)}</div>
+          </div>
+          <div>
+            <div class="text-[11px] text-slate-400 font-semibold">KOSZT REALIZACJI</div>
+            <div class="text-sm font-extrabold mt-1 ${sumReal <= sumOffer ? 'text-emerald-600' : 'text-rose-600'}">${fmtPLN(sumReal)}</div>
+          </div>
+          <div>
+            <div class="text-[11px] text-slate-400 font-semibold">WYNIK / MARŻA</div>
+            <div class="text-sm font-extrabold mt-1 ${sumOffer - sumReal >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${fmtPLN(sumOffer - sumReal)}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW SWITCHER & BULK ACTIONS -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="inline-flex bg-slate-200/70 p-1 rounded-lg">
+          <button onclick="orderSubView='lista'; render()" class="px-3 py-1.5 rounded-md text-xs font-semibold ${orderSubView==='lista'?'bg-white text-orange-600 shadow-xs':'text-slate-600'}">Lista zadań</button>
+          <button onclick="orderSubView='gantt'; render()" class="px-3 py-1.5 rounded-md text-xs font-semibold ${orderSubView==='gantt'?'bg-white text-orange-600 shadow-xs':'text-slate-600'}">Wykres Gantta</button>
+          <button onclick="orderSubView='kalendarz'; render()" class="px-3 py-1.5 rounded-md text-xs font-semibold ${orderSubView==='kalendarz'?'bg-white text-orange-600 shadow-xs':'text-slate-600'}">Kalendarz prac</button>
+        </div>
+
+        ${selectedTaskIds.size > 0 ? `
+          <div class="flex items-center gap-2 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-lg">
+            <span class="text-xs font-semibold text-orange-800">Zaznaczono: ${selectedTaskIds.size}</span>
+            <select onchange="bulkChangeStatus('${order.id}', this.value)" class="text-xs border border-orange-300 rounded px-2 py-1 bg-white">
+              <option value="">Zmień status...</option>
+              <option value="Nowe">Nowe</option>
+              <option value="W toku">W toku</option>
+              <option value="Zrealizowane">Zrealizowane</option>
+            </select>
+            <button onclick="bulkDeleteTasks('${order.id}')" class="text-xs font-semibold text-rose-600 hover:underline px-2">Usuń zaznaczone</button>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- SUBVIEW CONTENT -->
+      ${orderSubView === "lista" ? renderOrderTaskList(order) : orderSubView === "gantt" ? renderOrderGantt(order) : renderOrderCalendar(order)}
+    </div>
+  `;
+}
+
+function renderOrderTaskList(order) {
+  return `
+    <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-xs">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase">
+            <th class="py-3 px-3 w-8"><input type="checkbox" onchange="toggleAllTasks('${order.id}', this.checked)"></th>
+            <th class="py-3 px-3">Zadanie / Etap robót</th>
+            <th class="py-3 px-3">Status</th>
+            <th class="py-3 px-3">Wykonawca / Ekipa</th>
+            <th class="py-3 px-3">Termin od — do</th>
+            <th class="py-3 px-3 text-right">Wartość ofertowa</th>
+            <th class="py-3 px-3 text-right">Koszt realizacji</th>
+            <th class="py-3 px-3 text-right">Akcje</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${order.tasks.map(t => {
+            const overdue = isOverdue(t);
+            const contractor = state.contractors.find(c => c.id === t.contractorId)?.name || "Nie przypisano";
+            const statusStyle = t.status === "Zrealizowane" ? "bg-emerald-100 text-emerald-700" : t.status === "W toku" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700";
+            const costColor = Number(t.realVal) === 0 ? "text-slate-400" : Number(t.realVal) <= Number(t.offerVal) ? "text-emerald-600 font-bold" : "text-rose-600 font-bold";
+            return `
+              <tr class="hover:bg-slate-50/80 ${overdue ? 'bg-rose-50/40' : ''}">
+                <td class="py-3 px-3"><input type="checkbox" ${selectedTaskIds.has(t.id)?'checked':''} onchange="toggleTaskSelect('${t.id}')"></td>
+                <td class="py-3 px-3">
+                  <div class="font-semibold text-slate-900">${t.name}</div>
+                  <div class="text-[11px] text-slate-400">${t.category} • ${t.qty} ${t.unit}</div>
+                </td>
+                <td class="py-3 px-3">
+                  <select onchange="updateTaskStatus('${order.id}', '${t.id}', this.value)" class="px-2 py-1 rounded-full text-[11px] font-semibold border-0 cursor-pointer ${overdue ? 'bg-rose-100 text-rose-700' : statusStyle}">
+                    <option value="Nowe" ${t.status==='Nowe'?'selected':''}>Nowe ${overdue?'(!)':''}</option>
+                    <option value="W toku" ${t.status==='W toku'?'selected':''}>W toku ${overdue?'(!)':''}</option>
+                    <option value="Zrealizowane" ${t.status==='Zrealizowane'?'selected':''}>Zrealizowane</option>
+                  </select>
+                </td>
+                <td class="py-3 px-3 text-slate-700">${contractor}</td>
+                <td class="py-3 px-3 font-mono text-[11px] ${overdue ? 'text-rose-600 font-bold' : 'text-slate-600'}">${t.start || '-'} → ${t.end || '-'}</td>
+                <td class="py-3 px-3 text-right font-semibold text-slate-800">${fmtPLN(t.offerVal)}</td>
+                <td class="py-3 px-3 text-right ${costColor}">${fmtPLN(t.realVal)}</td>
+                <td class="py-3 px-3 text-right">
+                  <button onclick="openEditTaskModal('${order.id}', '${t.id}')" class="text-slate-400 hover:text-orange-600 mr-1.5"><i data-lucide="edit-2" class="w-3.5 h-3.5 inline"></i></button>
+                  <button onclick="deleteTask('${order.id}', '${t.id}')" class="text-slate-400 hover:text-rose-600"><i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i></button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderOrderGantt(order) {
+  const datedTasks = order.tasks.filter(t => t.start && t.end);
+  if (!datedTasks.length) {
+    return `<div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-500">Uzupełnij daty rozpoczęcia i zakończenia w zadaniach, aby wyświetlić wykres Gantta.</div>`;
+  }
+  const minDate = new Date(Math.min(...datedTasks.map(t => new Date(t.start))));
+  const maxDate = new Date(Math.max(...datedTasks.map(t => new Date(t.end))));
+  minDate.setDate(minDate.getDate() - 1);
+  maxDate.setDate(maxDate.getDate() + 2);
+
+  const days = [];
+  for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+
+  return `
+    <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-xs">
+      <div class="min-w-[800px]">
+        <div class="grid border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500" style="grid-template-columns: 260px repeat(${days.length}, minmax(32px, 1fr));">
+          <div class="p-3 border-r border-slate-200">Zadanie harmonogramu</div>
+          ${days.map(d => `<div class="py-2 text-center border-r border-slate-100">${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}</div>`).join('')}
+        </div>
+        <div class="divide-y divide-slate-100">
+          ${datedTasks.map(t => {
+            const s = new Date(t.start);
+            const e = new Date(t.end);
+            const barColor = t.status === "Zrealizowane" ? "bg-emerald-500" : isOverdue(t) ? "bg-rose-500" : "bg-blue-600";
+            return `
+              <div class="grid items-center text-xs hover:bg-slate-50" style="grid-template-columns: 260px repeat(${days.length}, minmax(32px, 1fr));">
+                <div class="p-2.5 border-r border-slate-200 font-medium text-slate-800 truncate" title="${t.name}">${t.name}</div>
+                ${days.map(d => {
+                  const inRange = d >= s && d <= e;
+                  return `<div class="h-9 border-r border-slate-100 flex items-center px-0.5">
+                    ${inRange ? `<div class="w-full h-5 ${barColor} rounded-xs opacity-90" title="${t.name}: ${t.start} - ${t.end}"></div>` : ''}
+                  </div>`;
+                }).join('')}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderOrderCalendar(order) {
+  const datedTasks = order.tasks.filter(t => t.start);
+  const baseDate = datedTasks.length ? new Date(datedTasks[0].start) : new Date();
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNames = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+
+  let cells = "";
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayTasks = order.tasks.filter(t => t.start && t.end && iso >= t.start && iso <= t.end);
+    cells += `
+      <div class="min-h-24 border border-slate-100 p-1.5 bg-white">
+        <div class="text-xs font-bold text-slate-400 mb-1">${day}</div>
+        <div class="space-y-1">
+          ${dayTasks.slice(0,3).map(t => `<div class="text-[10px] px-1.5 py-0.5 rounded truncate font-medium ${t.status==='Zrealizowane'?'bg-emerald-100 text-emerald-800':'bg-orange-100 text-orange-800'}">${t.name}</div>`).join('')}
+          ${dayTasks.length > 3 ? `<div class="text-[10px] text-slate-400 font-semibold">+${dayTasks.length - 3} więcej</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+      <div class="font-bold text-slate-800 mb-3">${monthNames[month]} ${year}</div>
+      <div class="grid grid-cols-7 gap-1">${cells}</div>
+    </div>
+  `;
+}
+
+// ==================== VIEW: CONTRACTORS ====================
+function renderContractors() {
+  return `
+    <div class="space-y-4">
+      <div class="flex justify-between items-center">
+        <p class="text-xs text-slate-500">Baza inwestorów (zamawiających) oraz ekip instalacyjnych i podwykonawców.</p>
+        <button onclick="openAddContractorModal()" class="px-3.5 py-2 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700">+ Dodaj kontrahenta</button>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase">
+              <th class="py-3 px-4">Nazwa firmy / Ekipy</th>
+              <th class="py-3 px-4">Typ</th>
+              <th class="py-3 px-4">Adres</th>
+              <th class="py-3 px-4">NIP</th>
+              <th class="py-3 px-4">Osoba kontaktowa</th>
+              <th class="py-3 px-4 text-right">Akcje</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            ${state.contractors.map(c => `
+              <tr class="hover:bg-slate-50">
+                <td class="py-3 px-4 font-bold text-slate-900">${c.name}</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${c.type==='Inwestor'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-800'}">${c.type}</span></td>
+                <td class="py-3 px-4 text-slate-600">${c.address}</td>
+                <td class="py-3 px-4 font-mono text-slate-500">${c.nip}</td>
+                <td class="py-3 px-4 text-slate-700">${c.contact} (${c.phone})</td>
+                <td class="py-3 px-4 text-right">
+                  <button onclick="deleteContractor('${c.id}')" class="text-slate-400 hover:text-rose-600"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== VIEW: DOCUMENTS GENERATOR ====================
+let docOrderId = state.orders[0]?.id || "";
+let docType = "protokol_koncowy";
+
+function renderDocuments() {
+  const order = state.orders.find(o => o.id === docOrderId) || state.orders[0];
+  if (!order) return `<div class="bg-white p-8 rounded-xl border border-slate-200 text-sm text-slate-500">Dodaj najpierw zlecenie, aby generować dokumenty.</div>`;
+  docOrderId = order.id;
+  const investor = state.contractors.find(c => c.id === order.investorId) || { name: "..................", address: "..................", nip: "..........", contact: ".................." };
+  const today = new Date().toLocaleDateString('pl-PL');
+  const sumOffer = order.tasks.reduce((s, t) => s + Number(t.offerVal || 0), 0);
+
+  const tasksToInclude = docType === "protokol_czesciowy" && selectedTaskIds.size > 0
+    ? order.tasks.filter(t => selectedTaskIds.has(t.id))
+    : order.tasks;
+
+  let docHtml = "";
+  if (docType.startsWith("protokol")) {
+    const isFinal = docType === "protokol_koncowy";
+    docHtml = `
+      <div class="text-center mb-6">
+        <h2 class="text-lg font-extrabold uppercase tracking-wide">${isFinal ? 'PROTOKÓŁ KOŃCOWY ODBIORU WYKONANYCH ROBÓT' : 'PROTOKÓŁ CZĘŚCIOWEGO ODBIORU ROBÓT'}</h2>
+        <p class="text-xs text-slate-500 mt-1">sporządzony dnia ${today} r. do zlecenia nr <strong>${order.code}</strong></p>
+      </div>
+      <div class="grid grid-cols-2 gap-6 text-xs mb-6 border-y border-slate-200 py-4">
+        <div>
+          <div class="font-bold text-slate-500 uppercase mb-1">Zamawiający (Inwestor):</div>
+          <div class="font-bold text-sm text-slate-900">${investor.name}</div>
+          <div>${investor.address}</div>
+          <div>NIP: ${investor.nip}</div>
+          <div>Przedstawiciel: ${investor.contact}</div>
+        </div>
+        <div>
+          <div class="font-bold text-slate-500 uppercase mb-1">Wykonawca:</div>
+          <div class="font-bold text-sm text-slate-900">${state.company.name}</div>
+          <div>${state.company.address}</div>
+          <div>NIP: ${state.company.nip}</div>
+          <div>Przedstawiciel: ${state.company.rep}</div>
+        </div>
+      </div>
+      <p class="text-xs mb-3"><strong>Przedmiot odbioru:</strong> ${order.title}</p>
+      <table class="w-full border-collapse border border-slate-300 text-xs mb-6">
+        <thead>
+          <tr class="bg-slate-100">
+            <th class="border border-slate-300 p-2 text-left">Lp.</th>
+            <th class="border border-slate-300 p-2 text-left">Zakres odebranych prac teletechnicznych</th>
+            <th class="border border-slate-300 p-2 text-right">Ilość</th>
+            <th class="border border-slate-300 p-2 text-center">J.m.</th>
+            <th class="border border-slate-300 p-2 text-right">Wartość netto</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tasksToInclude.map((t, i) => `
+            <tr>
+              <td class="border border-slate-300 p-2">${i+1}</td>
+              <td class="border border-slate-300 p-2">${t.name}</td>
+              <td class="border border-slate-300 p-2 text-right">${t.qty}</td>
+              <td class="border border-slate-300 p-2 text-center">${t.unit}</td>
+              <td class="border border-slate-300 p-2 text-right">${fmtPLN(t.offerVal)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="text-xs space-y-2 mb-10">
+        <p>1. Wykonawca przekazał dokumentację powykonawczą, deklaracje zgodności CE/CPR oraz protokoły z pomiarów i prób funkcjonalnych.</p>
+        <p>2. Komisja stwierdza, że roboty zostały wykonane zgodnie z projektem i obowiązującymi normami PN-EN / SEP — <strong>bez usterek</strong>.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-12 pt-8 text-xs text-center">
+        <div class="border-t border-slate-400 pt-2">Podpis i pieczęć Wykonawcy</div>
+        <div class="border-t border-slate-400 pt-2">Podpis i pieczęć Inwestora</div>
+      </div>
+    `;
+  } else if (docType === "umowa_firma") {
+    docHtml = `
+      <div class="text-center mb-6">
+        <h2 class="text-lg font-extrabold uppercase">UMOWA O WYKONANIE INSTALACJI TELETECHNICZNYCH</h2>
+        <p class="text-xs text-slate-500 mt-1">zawarta w dniu ${today} r. (Nr referencyjny: ${order.code})</p>
+      </div>
+      <div class="text-xs space-y-3 leading-relaxed">
+        <p><strong>§ 1. Strony Umowy</strong><br>
+        1. <strong>Zamawiający:</strong> ${investor.name}, ${investor.address}, NIP: ${investor.nip}, reprezentowany przez: ${investor.contact}.<br>
+        2. <strong>Wykonawca:</strong> ${state.company.name}, ${state.company.address}, NIP: ${state.company.nip}, reprezentowany przez: ${state.company.rep}.</p>
+        <p><strong>§ 2. Przedmiot Umowy</strong><br>
+        Zamawiający zleca, a Wykonawca przyjmuje do realizacji wykonanie instalacji niskoprądowych w ramach zadania: <strong>„${order.title}”</strong>, zgodnie z załącznikiem nr 1 (Kosztorys ofertowy).</p>
+        <p><strong>§ 3. Wynagrodzenie</strong><br>
+        Za wykonanie przedmiotu umowy strony ustalają wynagrodzenie kosztorysowe/ryczałtowe w kwocie <strong>${fmtPLN(sumOffer)} netto</strong> (+ należny podatek VAT).</p>
+        <p><strong>§ 4. Gwarancja i Odbiory</strong><br>
+        Wykonawca udziela 36-miesięcznej gwarancji na wykonane prace instalacyjne oraz przekazuje pełną dokumentację powykonawczą w dniu podpisania Protokołu Końcowego.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-12 pt-14 text-xs text-center">
+        <div class="border-t border-slate-400 pt-2">ZAMAWIAJĄCY</div>
+        <div class="border-t border-slate-400 pt-2">WYKONAWCA</div>
+      </div>
+    `;
+  } else {
+    docHtml = `
+      <div class="flex justify-between items-start border-b border-slate-200 pb-4 mb-6 text-xs">
+        <div>
+          <div class="font-extrabold text-base text-slate-900">${state.company.name}</div>
+          <div>${state.company.address}</div>
+          <div>Tel: ${state.company.phone} | E-mail: ${state.company.email}</div>
+        </div>
+        <div class="text-right">
+          <div class="font-bold text-orange-600 uppercase">OFERTA HANDLOWA</div>
+          <div>Data: ${today} r.</div>
+          <div>Dotyczy: ${order.code}</div>
+        </div>
+      </div>
+      <div class="text-xs mb-4">
+        <strong>Dla:</strong> ${investor.name} (${investor.address})<br>
+        <strong>Temat oferty:</strong> ${order.title}
+      </div>
+      <table class="w-full border-collapse border border-slate-300 text-xs mb-6">
+        <thead>
+          <tr class="bg-slate-100">
+            <th class="border border-slate-300 p-2 text-left">Lp.</th>
+            <th class="border border-slate-300 p-2 text-left">Zakres systemu / robót</th>
+            <th class="border border-slate-300 p-2 text-right">Ilość</th>
+            <th class="border border-slate-300 p-2 text-center">J.m.</th>
+            <th class="border border-slate-300 p-2 text-right">Wartość netto</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${order.tasks.map((t, i) => `
+            <tr>
+              <td class="border border-slate-300 p-2">${i+1}</td>
+              <td class="border border-slate-300 p-2">${t.name}</td>
+              <td class="border border-slate-300 p-2 text-right">${t.qty}</td>
+              <td class="border border-slate-300 p-2 text-center">${t.unit}</td>
+              <td class="border border-slate-300 p-2 text-right font-semibold">${fmtPLN(t.offerVal)}</td>
+            </tr>
+          `).join('')}
+          <tr class="bg-orange-50 font-bold">
+            <td colspan="4" class="border border-slate-300 p-2 text-right">RAZEM NETTO:</td>
+            <td class="border border-slate-300 p-2 text-right text-orange-700">${fmtPLN(sumOffer)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-slate-600">Ważność oferty: 14 dni. Cena obejmuje dostawę urządzeń, montaż, konfigurację oraz uruchomienie systemów.</p>
+    `;
+  }
+
+  return `
+    <div class="space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
+        <div class="flex flex-wrap items-center gap-3">
+          <select onchange="docOrderId=this.value; render()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold">
+            ${state.orders.map(o => `<option value="${o.id}" ${o.id===order.id?'selected':''}>${o.code} — ${o.title}</option>`).join('')}
+          </select>
+          <select onchange="docType=this.value; render()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold">
+            <option value="protokol_koncowy" ${docType==='protokol_koncowy'?'selected':''}>Protokół odbioru końcowego</option>
+            <option value="protokol_czesciowy" ${docType==='protokol_czesciowy'?'selected':''}>Protokół odbioru częściowego</option>
+            <option value="umowa_firma" ${docType==='umowa_firma'?'selected':''}>Umowa o roboty (Firma)</option>
+            <option value="oferta" ${docType==='oferta'?'selected':''}>Oferta handlowa z harmonogramem</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="downloadDocWord()" class="px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">Pobierz .DOC (Word)</button>
+          <button onclick="window.print()" class="px-3.5 py-2 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700">Drukuj / Zapisz PDF</button>
+        </div>
+      </div>
+
+      <div id="editable-document" contenteditable="true" class="bg-white max-w-4xl mx-auto p-10 rounded-xl border border-slate-200 shadow-sm print-only outline-none">
+        ${docHtml}
+      </div>
+    </div>
+  `;
+}
+
+function downloadDocWord() {
+  const html = document.getElementById("editable-document").innerHTML;
+  const fullHtml = `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #999;padding:6px;}</style></head><body>${html}</body></html>`;
+  const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dokument_${docType}_${new Date().toISOString().slice(0,10)}.doc`;
+  a.click();
+}
+
+// ==================== ACTIONS & MODALS ====================
+function openModal(html) {
+  document.getElementById("modal-content").innerHTML = html;
+  const mb = document.getElementById("modal-backdrop");
+  mb.classList.remove("hidden");
+  mb.classList.add("flex");
+  lucide.createIcons();
+}
+
+function closeModal() {
+  const mb = document.getElementById("modal-backdrop");
+  mb.classList.add("hidden");
+  mb.classList.remove("flex");
+}
+
+function createEstimateFromTemplate(key) {
+  const tpl = TEMPLATES[key];
+  const newEst = {
+    id: "est_" + Date.now(),
+    code: `KOSZT/${new Date().getFullYear()}/${String(state.estimates.length + 1).padStart(3, '0')}`,
+    title: `${tpl.name} — Nowa wycena`,
+    templateKey: key,
+    date: new Date().toISOString().slice(0, 10),
+    kp: 65,
+    kz: 5,
+    profit: 15,
+    vat: 23,
+    departments: JSON.parse(JSON.stringify(tpl.departments))
+  };
+  state.estimates.unshift(newEst);
+  saveState();
+  activeEstimateId = newEst.id;
+  switchView("estimates");
+}
+
+function openNewEstimateModal() {
+  openModal(`
+    <div class="p-6 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-slate-900">Nowy kosztorys teletechniczny</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Nazwa kosztorysu / obiektu</label>
+          <input id="new-est-title" type="text" placeholder="np. Biurowiec Centrum — Instalacja SSP i KD" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Szablon przedmiaru branżowego</label>
+          <select id="new-est-tpl" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+            <option value="EMPTY">-- Pusty kosztorys (własne działy) --</option>
+            ${Object.entries(TEMPLATES).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid grid-cols-4 gap-2">
+          <div><label class="font-semibold text-slate-600">Kp (%)</label><input id="new-est-kp" type="number" value="65" class="w-full border rounded px-2 py-1.5 mt-1"></div>
+          <div><label class="font-semibold text-slate-600">Kz (%)</label><input id="new-est-kz" type="number" value="5" class="w-full border rounded px-2 py-1.5 mt-1"></div>
+          <div><label class="font-semibold text-slate-600">Zysk (%)</label><input id="new-est-profit" type="number" value="15" class="w-full border rounded px-2 py-1.5 mt-1"></div>
+          <div><label class="font-semibold text-slate-600">VAT (%)</label><input id="new-est-vat" type="number" value="23" class="w-full border rounded px-2 py-1.5 mt-1"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitNewEstimate()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Utwórz kosztorys</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitNewEstimate() {
+  const title = document.getElementById("new-est-title").value.trim() || "Nowy kosztorys teletechniczny";
+  const tplKey = document.getElementById("new-est-tpl").value;
+  const departments = tplKey === "EMPTY"
+    ? [{ name: "1. Roboty instalacyjne", items: [] }]
+    : JSON.parse(JSON.stringify(TEMPLATES[tplKey].departments));
+
+  const newEst = {
+    id: "est_" + Date.now(),
+    code: `KOSZT/${new Date().getFullYear()}/${String(state.estimates.length + 1).padStart(3, '0')}`,
+    title,
+    templateKey: tplKey,
+    date: new Date().toISOString().slice(0, 10),
+    kp: Number(document.getElementById("new-est-kp").value || 0),
+    kz: Number(document.getElementById("new-est-kz").value || 0),
+    profit: Number(document.getElementById("new-est-profit").value || 0),
+    vat: Number(document.getElementById("new-est-vat").value || 23),
+    departments
+  };
+  state.estimates.unshift(newEst);
+  saveState();
+  activeEstimateId = newEst.id;
+  closeModal();
+  switchView("estimates");
+}
+
+function updateItemField(estId, dIdx, iIdx, field, value) {
+  const est = state.estimates.find(e => e.id === estId);
+  if (!est) return;
+  est.departments[dIdx].items[iIdx][field] = Number(value);
+  saveState();
+  render();
+}
+
+function openAddEstimateItemModal(estId) {
+  const est = state.estimates.find(e => e.id === estId);
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Dodaj pozycję do kosztorysu</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold block mb-1">Dział kosztorysu</label>
+          <select id="item-dep" class="w-full border rounded-lg px-3 py-2">
+            ${est.departments.map((d, idx) => `<option value="${idx}">${d.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div><label class="font-semibold block mb-1">Podstawa KNR</label><input id="item-code" type="text" value="KNR AL-01" class="w-full border rounded px-2.5 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">Jednostka</label><input id="item-unit" type="text" value="szt." class="w-full border rounded px-2.5 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">Obmiar (ilość)</label><input id="item-qty" type="number" step="0.01" value="1" class="w-full border rounded px-2.5 py-1.5"></div>
+        </div>
+        <div>
+          <label class="font-semibold block mb-1">Opis pozycji / urządzenia</label>
+          <input id="item-name" type="text" placeholder="np. Montaż czujki dymu optycznej" class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-lg border">
+          <div><label class="font-semibold block mb-1">Norma R (r-g)</label><input id="item-rnorm" type="number" step="0.01" value="0.5" class="w-full border rounded px-2 py-1 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Stawka R (zł)</label><input id="item-rrate" type="number" step="1" value="65" class="w-full border rounded px-2 py-1 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Materiał M (zł)</label><input id="item-mcost" type="number" step="0.1" value="150" class="w-full border rounded px-2 py-1 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Sprzęt S (zł)</label><input id="item-scost" type="number" step="0.1" value="2" class="w-full border rounded px-2 py-1 bg-white"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitAddEstimateItem('${estId}')" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Dodaj pozycję</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitAddEstimateItem(estId) {
+  const est = state.estimates.find(e => e.id === estId);
+  const dIdx = Number(document.getElementById("item-dep").value);
+  est.departments[dIdx].items.push({
+    code: document.getElementById("item-code").value || "KALK-WŁ",
+    name: document.getElementById("item-name").value || "Nowa pozycja instalacyjna",
+    unit: document.getElementById("item-unit").value || "szt.",
+    qty: Number(document.getElementById("item-qty").value || 1),
+    rNorm: Number(document.getElementById("item-rnorm").value || 0),
+    rRate: Number(document.getElementById("item-rrate").value || 65),
+    mCost: Number(document.getElementById("item-mcost").value || 0),
+    sCost: Number(document.getElementById("item-scost").value || 0)
+  });
+  saveState();
+  closeModal();
+  render();
+}
+
+function openEditItemModal(estId, dIdx, iIdx) {
+  const est = state.estimates.find(e => e.id === estId);
+  const it = est.departments[dIdx].items[iIdx];
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Edycja nakładów RMS pozycji</h3>
+      <div class="space-y-3 text-xs">
+        <div><label class="font-semibold block mb-1">Opis pozycji</label><input id="ed-name" type="text" value="${it.name}" class="w-full border rounded px-3 py-2"></div>
+        <div class="grid grid-cols-3 gap-2">
+          <div><label class="font-semibold block mb-1">Podstawa</label><input id="ed-code" type="text" value="${it.code}" class="w-full border rounded px-2 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">J.m.</label><input id="ed-unit" type="text" value="${it.unit}" class="w-full border rounded px-2 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">Obmiar</label><input id="ed-qty" type="number" step="0.01" value="${it.qty}" class="w-full border rounded px-2 py-1.5"></div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-lg border">
+          <div><label class="font-semibold block mb-1">Norma R</label><input id="ed-rnorm" type="number" step="0.01" value="${it.rNorm}" class="w-full border rounded px-2 py-1 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Stawka R</label><input id="ed-rrate" type="number" step="1" value="${it.rRate}" class="w-full border rounded px-2 py-1 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Materiał M</label><input id="ed-mcost" type="number" step="0.1" value="${it.mCost}" class="w-full border rounded px-2 py-1 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Sprzęt S</label><input id="ed-scost" type="number" step="0.1" value="${it.sCost}" class="w-full border rounded px-2 py-1 bg-white"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitEditItem('${estId}', ${dIdx}, ${iIdx})" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Zapisz zmiany</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitEditItem(estId, dIdx, iIdx) {
+  const est = state.estimates.find(e => e.id === estId);
+  const it = est.departments[dIdx].items[iIdx];
+  it.name = document.getElementById("ed-name").value;
+  it.code = document.getElementById("ed-code").value;
+  it.unit = document.getElementById("ed-unit").value;
+  it.qty = Number(document.getElementById("ed-qty").value);
+  it.rNorm = Number(document.getElementById("ed-rnorm").value);
+  it.rRate = Number(document.getElementById("ed-rrate").value);
+  it.mCost = Number(document.getElementById("ed-mcost").value);
+  it.sCost = Number(document.getElementById("ed-scost").value);
+  saveState();
+  closeModal();
+  render();
+}
+
+function deleteEstimateItem(estId, dIdx, iIdx) {
+  const est = state.estimates.find(e => e.id === estId);
+  est.departments[dIdx].items.splice(iIdx, 1);
+  saveState();
+  render();
+}
+
+function addDepartment(estId) {
+  const name = prompt("Podaj nazwę nowego działu kosztorysu:");
+  if (!name) return;
+  const est = state.estimates.find(e => e.id === estId);
+  est.departments.push({ name: `${est.departments.length + 1}. ${name}`, items: [] });
+  saveState();
+  render();
+}
+
+function deleteDepartment(estId, dIdx) {
+  if (!confirm("Usunąć cały dział wraz z pozycjami?")) return;
+  const est = state.estimates.find(e => e.id === estId);
+  est.departments.splice(dIdx, 1);
+  saveState();
+  render();
+}
+
+function deleteEstimate(estId) {
+  if (!confirm("Usunąć ten kosztorys?")) return;
+  state.estimates = state.estimates.filter(e => e.id !== estId);
+  saveState();
+  render();
+}
+
+function openEstimateSettingsModal(estId) {
+  const est = state.estimates.find(e => e.id === estId);
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Ustawienia narzutów kosztorysowych</h3>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div><label class="font-semibold block mb-1">Koszty pośrednie Kp (%)</label><input id="set-kp" type="number" value="${est.kp}" class="w-full border rounded px-3 py-2"></div>
+        <div><label class="font-semibold block mb-1">Koszty zakupu Kz (%)</label><input id="set-kz" type="number" value="${est.kz}" class="w-full border rounded px-3 py-2"></div>
+        <div><label class="font-semibold block mb-1">Zysk kalkulacyjny (%)</label><input id="set-profit" type="number" value="${est.profit}" class="w-full border rounded px-3 py-2"></div>
+        <div><label class="font-semibold block mb-1">Stawka podatku VAT (%)</label><input id="set-vat" type="number" value="${est.vat}" class="w-full border rounded px-3 py-2"></div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="saveEstimateSettings('${estId}')" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Zastosuj narzuty</button>
+      </div>
+    </div>
+  `);
+}
+
+function saveEstimateSettings(estId) {
+  const est = state.estimates.find(e => e.id === estId);
+  est.kp = Number(document.getElementById("set-kp").value);
+  est.kz = Number(document.getElementById("set-kz").value);
+  est.profit = Number(document.getElementById("set-profit").value);
+  est.vat = Number(document.getElementById("set-vat").value);
+  saveState();
+  closeModal();
+  render();
+}
+
+function updateMarketPrices(estId) {
+  const est = state.estimates.find(e => e.id === estId);
+  est.departments.forEach(d => d.items.forEach(it => {
+    it.rRate = 70; // aktualizacja stawki r-g wg cennika rynkowego
+    it.mCost = Number((it.mCost * 1.03).toFixed(2));
+  }));
+  saveState();
+  render();
+  alert("Zaktualizowano stawki robocizny (70 zł/r-g) oraz indeksy cenowe materiałów wg cennika RMS!");
+}
+
+function exportEstimateCSV(estId) {
+  const est = state.estimates.find(e => e.id === estId);
+  let csv = "Dział;Podstawa;Opis pozycji;Jm;Obmiar;Cena jedn. netto;Wartość netto\n";
+  est.departments.forEach(d => {
+    d.items.forEach(it => {
+      const c = calcItem(it, est);
+      csv += `"${d.name}";"${it.code}";"${it.name}";"${it.unit}";${it.qty};${c.unitPrice.toFixed(2)};${c.net.toFixed(2)}\n`;
+    });
+  });
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${est.code.replace(/\//g,'_')}.csv`;
+  a.click();
+}
+
+// ==================== ORDER & TASK ACTIONS ====================
+function openNewOrderModal() {
+  const investors = state.contractors.filter(c => c.type === "Inwestor");
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Nowe zlecenie / projekt</h3>
+      <div class="space-y-3 text-xs">
+        <div><label class="font-semibold block mb-1">Nazwa zlecenia / inwestycji</label><input id="ord-title" type="text" placeholder="np. Montaż CCTV IP i Kontroli Dostępu — Magazyn B" class="w-full border rounded px-3 py-2 text-sm"></div>
+        <div>
+          <label class="font-semibold block mb-1">Inwestor</label>
+          <select id="ord-inv" class="w-full border rounded px-3 py-2 text-sm">
+            ${investors.map(i => `<option value="${i.id}">${i.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="font-semibold block mb-1">Powiązany kosztorys (opcjonalnie)</label>
+          <select id="ord-est" class="w-full border rounded px-3 py-2 text-sm">
+            <option value="">-- Brak (dodam zadania ręcznie) --</option>
+            ${state.estimates.map(e => `<option value="${e.id}">${e.code} — ${e.title}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitNewOrder()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Utwórz zlecenie</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitNewOrder() {
+  const title = document.getElementById("ord-title").value.trim() || "Nowe zlecenie teletechniczne";
+  const investorId = document.getElementById("ord-inv").value;
+  const estimateId = document.getElementById("ord-est").value;
+  const newOrd = {
+    id: "ord_" + Date.now(),
+    code: `ZLC/${new Date().getFullYear()}/${String(state.orders.length + 1).padStart(2, '0')}`,
+    title,
+    investorId,
+    estimateId,
+    tasks: []
+  };
+  state.orders.unshift(newOrd);
+  saveState();
+  activeOrderId = newOrd.id;
+  closeModal();
+  switchView("orders");
+}
+
+function openImportTasksModal(orderId) {
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Importuj zadania z kosztorysu</h3>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold block mb-1">Wybierz kosztorys źródłowy</label>
+          <select id="imp-est" class="w-full border rounded px-3 py-2 text-sm">
+            ${state.estimates.map(e => `<option value="${e.id}">${e.code} — ${e.title}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="font-semibold block mb-1">Poziom agregacji zadań</label>
+          <select id="imp-mode" class="w-full border rounded px-3 py-2 text-sm">
+            <option value="items">Każda pozycja kosztorysu jako osobne zadanie</option>
+            <option value="departments">Każdy dział kosztorysu jako osobne zadanie</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitImportTasks('${orderId}')" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Importuj do zlecenia</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitImportTasks(orderId) {
+  const order = state.orders.find(o => o.id === orderId);
+  const est = state.estimates.find(e => e.id === document.getElementById("imp-est").value);
+  const mode = document.getElementById("imp-mode").value;
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (mode === "items") {
+    est.departments.forEach(d => {
+      d.items.forEach(it => {
+        const c = calcItem(it, est);
+        order.tasks.push({
+          id: "t_" + Math.random().toString(36).slice(2, 9),
+          name: it.name,
+          category: d.name,
+          status: "Nowe",
+          contractorId: "",
+          start: today,
+          end: today,
+          unit: it.unit,
+          qty: it.qty,
+          offerVal: Number(c.net.toFixed(2)),
+          realVal: 0
+        });
+      });
+    });
+  } else {
+    est.departments.forEach(d => {
+      let sum = 0;
+      d.items.forEach(it => { sum += calcItem(it, est).net; });
+      order.tasks.push({
+        id: "t_" + Math.random().toString(36).slice(2, 9),
+        name: d.name,
+        category: "Etap robót",
+        status: "Nowe",
+        contractorId: "",
+        start: today,
+        end: today,
+        unit: "kpl.",
+        qty: 1,
+        offerVal: Number(sum.toFixed(2)),
+        realVal: 0
+      });
+    });
+  }
+  saveState();
+  closeModal();
+  render();
+}
+
+function openAddTaskModal(orderId) {
+  const subs = state.contractors.filter(c => c.type === "Podwykonawca");
+  const today = new Date().toISOString().slice(0, 10);
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Dodaj zadanie do zlecenia</h3>
+      <div class="space-y-3 text-xs">
+        <div><label class="font-semibold block mb-1">Nazwa zadania</label><input id="tk-name" type="text" class="w-full border rounded px-3 py-2"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="font-semibold block mb-1">Kategoria</label><input id="tk-cat" type="text" value="Instalacje" class="w-full border rounded px-2.5 py-1.5"></div>
+          <div>
+            <label class="font-semibold block mb-1">Wykonawca / Ekipa</label>
+            <select id="tk-sub" class="w-full border rounded px-2.5 py-1.5">
+              <option value="">-- Nie przypisano --</option>
+              ${subs.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="font-semibold block mb-1">Termin od</label><input id="tk-start" type="date" value="${today}" class="w-full border rounded px-2.5 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">Termin do</label><input id="tk-end" type="date" value="${today}" class="w-full border rounded px-2.5 py-1.5"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="font-semibold block mb-1">Wartość ofertowa (zł)</label><input id="tk-offer" type="number" step="0.01" value="1500" class="w-full border rounded px-2.5 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">Koszt realizacji (zł)</label><input id="tk-real" type="number" step="0.01" value="0" class="w-full border rounded px-2.5 py-1.5"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitAddTask('${orderId}')" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Zapisz zadanie</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitAddTask(orderId) {
+  const order = state.orders.find(o => o.id === orderId);
+  order.tasks.push({
+    id: "t_" + Date.now(),
+    name: document.getElementById("tk-name").value || "Nowe zadanie",
+    category: document.getElementById("tk-cat").value || "Ogólne",
+    status: "Nowe",
+    contractorId: document.getElementById("tk-sub").value,
+    start: document.getElementById("tk-start").value,
+    end: document.getElementById("tk-end").value,
+    unit: "kpl.",
+    qty: 1,
+    offerVal: Number(document.getElementById("tk-offer").value || 0),
+    realVal: Number(document.getElementById("tk-real").value || 0)
+  });
+  saveState();
+  closeModal();
+  render();
+}
+
+function openEditTaskModal(orderId, taskId) {
+  const order = state.orders.find(o => o.id === orderId);
+  const t = order.tasks.find(x => x.id === taskId);
+  const subs = state.contractors.filter(c => c.type === "Podwykonawca");
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Edytuj zadanie i kontrolę kosztów</h3>
+      <div class="space-y-3 text-xs">
+        <div><label class="font-semibold block mb-1">Nazwa zadania</label><input id="et-name" type="text" value="${t.name}" class="w-full border rounded px-3 py-2"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-semibold block mb-1">Status</label>
+            <select id="et-status" class="w-full border rounded px-2.5 py-1.5">
+              <option value="Nowe" ${t.status==='Nowe'?'selected':''}>Nowe</option>
+              <option value="W toku" ${t.status==='W toku'?'selected':''}>W toku</option>
+              <option value="Zrealizowane" ${t.status==='Zrealizowane'?'selected':''}>Zrealizowane</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold block mb-1">Wykonawca</label>
+            <select id="et-sub" class="w-full border rounded px-2.5 py-1.5">
+              <option value="">-- Nie przypisano --</option>
+              ${subs.map(s => `<option value="${s.id}" ${s.id===t.contractorId?'selected':''}>${s.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="font-semibold block mb-1">Termin od</label><input id="et-start" type="date" value="${t.start}" class="w-full border rounded px-2.5 py-1.5"></div>
+          <div><label class="font-semibold block mb-1">Termin do</label><input id="et-end" type="date" value="${t.end}" class="w-full border rounded px-2.5 py-1.5"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded border">
+          <div><label class="font-semibold block mb-1">Wartość ofertowa (zł)</label><input id="et-offer" type="number" step="0.01" value="${t.offerVal}" class="w-full border rounded px-2.5 py-1.5 bg-white"></div>
+          <div><label class="font-semibold block mb-1">Koszt realizacji (zł)</label><input id="et-real" type="number" step="0.01" value="${t.realVal}" class="w-full border rounded px-2.5 py-1.5 bg-white"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitEditTask('${orderId}', '${taskId}')" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Zapisz zmiany</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitEditTask(orderId, taskId) {
+  const order = state.orders.find(o => o.id === orderId);
+  const t = order.tasks.find(x => x.id === taskId);
+  t.name = document.getElementById("et-name").value;
+  t.status = document.getElementById("et-status").value;
+  t.contractorId = document.getElementById("et-sub").value;
+  t.start = document.getElementById("et-start").value;
+  t.end = document.getElementById("et-end").value;
+  t.offerVal = Number(document.getElementById("et-offer").value);
+  t.realVal = Number(document.getElementById("et-real").value);
+  saveState();
+  closeModal();
+  render();
+}
+
+function updateTaskStatus(orderId, taskId, newStatus) {
+  const order = state.orders.find(o => o.id === orderId);
+  const t = order.tasks.find(x => x.id === taskId);
+  t.status = newStatus;
+  saveState();
+  render();
+}
+
+function deleteTask(orderId, taskId) {
+  const order = state.orders.find(o => o.id === orderId);
+  order.tasks = order.tasks.filter(x => x.id !== taskId);
+  selectedTaskIds.delete(taskId);
+  saveState();
+  render();
+}
+
+function toggleTaskSelect(taskId) {
+  if (selectedTaskIds.has(taskId)) selectedTaskIds.delete(taskId);
+  else selectedTaskIds.add(taskId);
+  render();
+}
+
+function toggleAllTasks(orderId, checked) {
+  const order = state.orders.find(o => o.id === orderId);
+  selectedTaskIds.clear();
+  if (checked) order.tasks.forEach(t => selectedTaskIds.add(t.id));
+  render();
+}
+
+function bulkChangeStatus(orderId, status) {
+  if (!status) return;
+  const order = state.orders.find(o => o.id === orderId);
+  order.tasks.forEach(t => { if (selectedTaskIds.has(t.id)) t.status = status; });
+  saveState();
+  render();
+}
+
+function bulkDeleteTasks(orderId) {
+  const order = state.orders.find(o => o.id === orderId);
+  order.tasks = order.tasks.filter(t => !selectedTaskIds.has(t.id));
+  selectedTaskIds.clear();
+  saveState();
+  render();
+}
+
+function generateProtocolFromOrder(orderId) {
+  docOrderId = orderId;
+  docType = selectedTaskIds.size > 0 ? "protokol_czesciowy" : "protokol_koncowy";
+  switchView("documents");
+}
+
+// ==================== CONTRACTOR ACTIONS ====================
+function openAddContractorModal() {
+  openModal(`
+    <div class="p-6 space-y-4">
+      <h3 class="font-bold text-slate-900 border-b pb-2">Dodaj kontrahenta lub ekipę</h3>
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2"><label class="font-semibold block mb-1">Nazwa firmy / zespołu</label><input id="c-name" type="text" class="w-full border rounded px-3 py-2"></div>
+          <div>
+            <label class="font-semibold block mb-1">Typ</label>
+            <select id="c-type" class="w-full border rounded px-2.5 py-2">
+              <option value="Inwestor">Inwestor</option>
+              <option value="Podwykonawca">Podwykonawca / Ekipa</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="font-semibold block mb-1">Adres</label><input id="c-addr" type="text" class="w-full border rounded px-3 py-2"></div>
+          <div><label class="font-semibold block mb-1">NIP</label><input id="c-nip" type="text" class="w-full border rounded px-3 py-2"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="font-semibold block mb-1">Osoba kontaktowa</label><input id="c-contact" type="text" class="w-full border rounded px-3 py-2"></div>
+          <div><label class="font-semibold block mb-1">Telefon</label><input id="c-phone" type="text" class="w-full border rounded px-3 py-2"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold">Anuluj</button>
+        <button onclick="submitAddContractor()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-semibold">Zapisz</button>
+      </div>
+    </div>
+  `);
+}
+
+function submitAddContractor() {
+  state.contractors.push({
+    id: "c_" + Date.now(),
+    name: document.getElementById("c-name").value || "Nowy kontrahent",
+    type: document.getElementById("c-type").value,
+    address: document.getElementById("c-addr").value || "-",
+    nip: document.getElementById("c-nip").value || "-",
+    contact: document.getElementById("c-contact").value || "-",
+    phone: document.getElementById("c-phone").value || "-",
+    email: ""
+  });
+  saveState();
+  closeModal();
+  render();
+}
+
+function deleteContractor(id) {
+  state.contractors = state.contractors.filter(c => c.id !== id);
+  saveState();
+  render();
+}
+
+// INIT
+switchView("dashboard");
+</script>
+</body>
+</html>
